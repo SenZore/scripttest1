@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===============================
-# Codespace FileHost Installer 🌐
+# Simple FileHost Installer 🌐
 # ===============================
 
 DOMAIN="host.senzdev.xyz"
@@ -10,15 +10,11 @@ PORT="8080"
 FILEHOST_DIR="/tmp/filehost"
 DB_FILE="$FILEHOST_DIR/database/filebrowser.db"
 
-echo "🌐 Starting Codespace FileHost Setup..."
+echo "🌐 Starting FileHost Setup..."
 sleep 1
 
-# Detect Codespace domain
-if [ -z "$CODESPACE_NAME" ]; then
-  echo "❌ Not running inside Codespace!"
-  exit 1
-fi
-CODESPACE_DOMAIN="https://$CODESPACE_NAME-$PORT.githubpreview.dev"
+# Detect VPS Public IP
+VPS_IP=$(curl -s https://api.ipify.org)
 
 # Install File Browser
 echo "📥 Downloading File Browser..."
@@ -46,14 +42,10 @@ sleep 3
 # Create Admin User
 $FILEHOST_DIR/filebrowser users add admin "$UPLOAD_PIN" --perm.admin
 
-# Auto-start (optional)
-START_CMD="bash <(curl -s https://raw.githubusercontent.com/SenZore/scripttest1/main/install.sh)"
-grep -qxF "$START_CMD" ~/.bashrc || echo "$START_CMD" >> ~/.bashrc
-
 # Info
 echo ""
 echo "✅ FileHost Ready!"
-echo "🌐 Access: $CODESPACE_DOMAIN"
+echo "🌐 Access: http://$VPS_IP:$PORT"
 echo "🔑 Upload PIN: $UPLOAD_PIN"
 echo "📂 Public download links enabled (upload needs PIN)"
 echo "📄 Logs: tail -f $FILEHOST_DIR/log.txt"
