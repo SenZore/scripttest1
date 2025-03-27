@@ -1,44 +1,42 @@
 #!/bin/bash
 
-# =============== Simple FileHost Auto Installer =============== #
-# Author  : SenzDev
-# Domain  : host.senzdev.xyz
-# Upload PIN : 969696
-# ============================================================= #
+# ===============================
+#   Simple FileHost Installer
+#       by SenZore
+# ===============================
 
-set -e
+# === CONFIG ===
+DOMAIN="host.senzdev.xyz"
+UPLOAD_PIN="969696"
 
 echo ""
-echo "🔐 Starting Simple File Host Setup..."
+echo "📂 Starting FileHost Auto Installer for $DOMAIN ..."
 sleep 1
 
-# Auto-detect public IP
-PUBLIC_IP=$(curl -s ifconfig.me)
+# === Auto Detect Public IP ===
+IP=$(curl -s ifconfig.me)
+echo "🌐 Detected VPS IP: $IP"
 
-echo "🌐 Detected Public IP: $PUBLIC_IP"
-echo ""
-
-# Install Docker & Docker Compose
-echo "📥 Installing Docker & Docker Compose..."
+# === Update & Install Dependencies ===
+echo "📥 Installing Docker, Docker Compose & Caddy..."
 apt update -y
-apt install -y docker.io docker-compose curl ufw
+apt install -y docker.io docker-compose curl ufw caddy
 
-# Enable Docker
+# === Enable & Start Docker ===
 systemctl enable --now docker
 
-# Setup Firewall (Optional but recommended)
+# === Firewall Rules (Optional but safe) ===
 ufw allow 80,443/tcp
 ufw allow OpenSSH
 ufw --force enable
 
-# Create directories
-mkdir -p /opt/filehost
+# === Create directories ===
+mkdir -p /opt/filehost/data
 cd /opt/filehost
 
-# Create Docker Compose
+# === Docker Compose File ===
 cat > docker-compose.yml <<EOF
 version: '3'
-
 services:
   filebrowser:
     image: filebrowser/filebrowser:latest
@@ -47,45 +45,39 @@ services:
       - "8080:80"
     volumes:
       - /opt/filehost/data:/srv
-    environment:
-      - FB_AUTH_METHOD=basic
     restart: unless-stopped
 EOF
 
-# Start container
-echo "🚀 Starting FileBrowser..."
+# === Start FileBrowser ===
+echo "🚀 Launching FileBrowser..."
 docker-compose up -d
-
-# Wait for FileBrowser to boot
 sleep 5
 
-# Set admin PIN
-docker exec filebrowser filebrowser users add admin "" --perm.admin
-docker exec filebrowser filebrowser config set --auth.method=json --auth.json='{"pin":"969696"}'
+# === Set Admin PIN ===
+docker exec filebrowser filebrowser users add admin "" --perm.admin || true
+docker exec filebrowser filebrowser config set --auth.method=json --auth.json="{\"pin\":\"${UPLOAD_PIN}\"}"
 
-# Install Caddy for HTTPS reverse proxy
-echo "🔒 Installing Caddy Server (Auto SSL)..."
-apt install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt update
-apt install -y caddy
-
-# Configure Caddy
+# === Configure Caddy Reverse Proxy ===
+echo "🔐 Setting up Caddy Reverse Proxy..."
 cat > /etc/caddy/Caddyfile <<EOF
-host.senzdev.xyz {
+$DOMAIN {
     reverse_proxy 127.0.0.1:8080
 }
 EOF
 
-# Restart Caddy
 systemctl restart caddy
 systemctl enable caddy
 
+# === Finished ===
 echo ""
-echo "✅ Installation Complete!"
-echo "🌐 Access: https://host.senzdev.xyz"
-echo "🔑 Upload PIN: 969696"
-echo "📂 Uploaded files will have public download links"
+echo "✅ Installation Finished!"
+echo "🌐 Access: https://$DOMAIN"
+echo "🔑 Upload PIN: $UPLOAD_PIN"
+echo "📄 Public download links enabled"
+echo "🚀 VPS IP: $IP"
+echo ""
+echo "⚠️ Don't forget to point your A Record:"
+echo "    $DOMAIN --> $IP"
 echo ""
 
+exit 0
